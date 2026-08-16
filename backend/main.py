@@ -50,14 +50,14 @@ def create_trip(request: TripRequest):
 
 
 # HOMEWORK: dua endpoint GET baru yang mengembalikan list
-# @app.get("/api/v1/recommendations")
-# def get_recommendations():
-#     return ["Tokyo Tower", "Mount Fuji", "Shibuya"]
+@app.get("/api/v1/recommendations")
+def get_recommendations():
+    return ["Tokyo Tower", "Mount Fuji", "Shibuya"]
 
 
-# @app.get("/api/v1/transportations")
-# def get_transportations():
-#     return ["Bus", "Train", "Flight"]
+@app.get("/api/v1/transportations")
+def get_transportations():
+    return ["Bus", "Train", "Flight"]
 
 
 # BONUS: endpoint yang me-list semua kategori trip yang valid
