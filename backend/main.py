@@ -1,90 +1,66 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import Optional
+
 from services.trip_service import (
-    get_trip_category,
-    get_travel_season,
     calculate_daily_budget,
-    get_recommended_places,
+    get_trip_category,
     get_recommended_transportation,
 )
 
-
-def print_trip_summary(destinations, days, budget, currency, travel_month,
-                        category, daily_budget, season, transportation,
-                        hotel_cost, food_cost, transport_cost, misc_cost, total_cost):
-    """Mencetak ringkasan perjalanan dengan format yang rapi."""
-    print("=" * 34)
-    print("KelanaAI")
-    print("=" * 34)
-
-    # Sesi 1: data dasar (destination sekarang bisa multiple, lihat BONUS)
-    print(f"Destination     : {', '.join(destinations)}")
-    print(f"Days            : {days}")
-    print(f"Budget          : {budget} {currency}")
-    print(f"Category        : {category}")
-    print(f"Daily Budget    : {daily_budget:.0f} {currency}/Day")
-    print(f"Travel Month    : {travel_month}")
-
-    # HOMEWORK: tampilkan Season
-    print(f"Season          : {season}")
-
-    # CORE CHALLENGE: tampilkan rekomendasi transportasi
-    print(f"Recommended Transportation: {transportation}")
-
-    # Sesi 1: cost breakdown
-    print("-" * 34)
-    print(f"Hotel Cost        : {hotel_cost} {currency}")
-    print(f"Food Cost         : {food_cost} {currency}")
-    print(f"Transportation    : {transport_cost} {currency}")
-    print(f"Miscellaneous     : {misc_cost} {currency}")
-    print(f"Total Est. Cost   : {total_cost} {currency}")
-
-    if total_cost > budget:
-        print("⚠ Budget exceeded.")
-
-    # Rekomendasi tempat per destinasi (list + for loop, ada di service layer)
-    print("-" * 34)
-    for dest in destinations:
-        places = get_recommended_places(dest)
-        print(f"Recommended Places in {dest.title()}")
-        for place in places:
-            print(f"- {place}")
+app = FastAPI(title="KelanaAI")
 
 
-def main():
-    # BONUS: multiple destinations pakai list + while loop
-    destinations = []
-    print("Enter your destinations (type 'done' when finished):")
-    while True:
-        dest = input(f"Destination {len(destinations) + 1}: ")
-        if dest.lower() == "done":
-            if len(destinations) == 0:
-                print("Please enter at least one destination.")
-                continue
-            break
-        destinations.append(dest)
-
-    days = int(input("Days: "))
-    budget = float(input("Budget: "))
-    currency = input("Currency: ")
-    travel_month = input("Travel Month: ")
-
-    hotel_cost = float(input("Hotel Cost: "))
-    food_cost = float(input("Food Cost: "))
-    transport_cost = float(input("Transportation Cost: "))
-    misc_cost = float(input("Miscellaneous Cost: "))
-    total_cost = hotel_cost + food_cost + transport_cost + misc_cost
-
-    # Panggil business logic dari service layer
-    category = get_trip_category(budget)
-    daily_budget = calculate_daily_budget(budget, days)
-    season = get_travel_season(travel_month)
-    transportation = get_recommended_transportation(category)
-
-    print_trip_summary(
-        destinations, days, budget, currency, travel_month,
-        category, daily_budget, season, transportation,
-        hotel_cost, food_cost, transport_cost, misc_cost, total_cost
-    )
+# Pydantic model — validasi request body untuk POST /api/v1/trips
+class TripRequest(BaseModel):
+    destination: str
+    days: int
+    budget: float
+    # CORE CHALLENGE: field tambahan travel_style (opsional)
+    travel_style: Optional[str] = None
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/")
+def home():
+    return {"message": "Welcome to KelanaAI"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "OK"}
+
+
+@app.post("/api/v1/trips")
+def create_trip(request: TripRequest):
+    # Reuse business logic dari Session 2 — trip_service.py tidak diubah sama sekali
+    daily_budget = calculate_daily_budget(request.budget, request.days)
+    category = get_trip_category(request.budget)
+
+    # CORE CHALLENGE: rekomendasi transportasi (reuse business rule Sesi 2 Challenge)
+    recommended_transport = get_recommended_transportation(category)
+
+    return {
+        "destination": request.destination,
+        "days": request.days,
+        "budget": request.budget,
+        "daily_budget": daily_budget,
+        "category": category,
+        "recommendation_transport": recommended_transport,
+    }
+
+
+# HOMEWORK: dua endpoint GET baru yang mengembalikan list
+# @app.get("/api/v1/recommendations")
+# def get_recommendations():
+#     return ["Tokyo Tower", "Mount Fuji", "Shibuya"]
+
+
+# @app.get("/api/v1/transportations")
+# def get_transportations():
+#     return ["Bus", "Train", "Flight"]
+
+
+# BONUS: endpoint yang me-list semua kategori trip yang valid
+@app.get("/api/v1/trip-categories")
+def get_trip_categories():
+    return ["Backpacker", "Standard", "Luxury"]
