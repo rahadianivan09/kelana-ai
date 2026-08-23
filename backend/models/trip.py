@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text
 from sqlalchemy.sql import func
 
 from database import Base
@@ -13,10 +13,11 @@ class Trip(Base):
     budget = Column(Float, nullable=False)
     category = Column(String, nullable=False)
     daily_budget = Column(Float, nullable=False)
+    travel_style = Column(String, nullable=True)
+    ai_recommendation = Column(Text, nullable=True)
 
-    # BONUS: auto-save timestamp setiap kali trip baru dibuat
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
-    )
+    ) 
