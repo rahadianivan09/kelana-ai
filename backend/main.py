@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware    
 from pydantic import BaseModel
 from typing import Optional
 
@@ -12,6 +13,15 @@ from models.trip import Trip
 from database import SessionLocal, init_db
 
 app = FastAPI(title="KelanaAI")
+
+# SESSION 6 — HANDS-ON LAB: izinkan Next.js (localhost:3000) manggil API ini
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 init_db()
 

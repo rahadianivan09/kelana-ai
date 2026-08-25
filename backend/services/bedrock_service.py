@@ -37,24 +37,32 @@ def get_travel_recommendation(
     budget: float,
     travel_style: str,
 ) -> str:
+    # SESSION 6 — CORE CHALLENGE: prompt diubah dari Markdown (sesi 5) jadi JSON terstruktur
+    # supaya frontend bisa render daily cards / travel tips / food / budget breakdown terpisah
     prompt = (
         f"You are an experienced travel planner.\n"
-        f"Create a {days}-day itinerary for {destination}.\n"
+        f"Destination: {destination}\n"
         f"Budget: USD {budget}\n"
-        f"Travel Style: {travel_style}\n\n"
-        # CORE CHALLENGE — ask Bedrock for a structured response
-        f"Provide:\n"
-        f"- A daily itinerary\n"
-        f"- Estimated daily budget\n"
-        f"- Local food recommendations\n"
-        f"- Transportation suggestions\n\n"
-        # HOMEWORK — break each day into morning/afternoon/evening
-        f"For each day, structure the plan into:\n"
-        f"- Morning activities (2-3 suggestions)\n"
-        f"- Afternoon activities (cultural sites and experiences)\n"
-        f"- Evening activities (dinner spots and nightlife)\n\n"
-        # BONUS — Markdown formatting, instruction placed at the end
-        f"Format your response as Markdown with headers (##) and bullet lists (-)."
+        f"Duration: {days} days\n"
+        f"Travel style: {travel_style}\n\n"
+        f"Respond with ONLY valid JSON (no markdown, no code fences, no extra text) "
+        f"in exactly this shape:\n\n"
+        "{\n"
+        '  "itinerary": [\n'
+        '    {"day": 1, "title": "short day title", "activities": ["activity 1", "activity 2", "activity 3"]}\n'
+        "  ],\n"
+        '  "travel_tips": ["tip 1", "tip 2", "tip 3"],\n'
+        '  "food_recommendations": ["dish or place 1", "dish or place 2", "dish or place 3"],\n'
+        '  "budget_breakdown": [\n'
+        '    {"category": "Accommodation", "amount": 0},\n'
+        '    {"category": "Food", "amount": 0},\n'
+        '    {"category": "Transportation", "amount": 0},\n'
+        '    {"category": "Activities", "amount": 0}\n'
+        "  ]\n"
+        "}\n\n"
+        f"The itinerary array must have exactly {days} entries (one per day). "
+        f"budget_breakdown amounts must sum to approximately {budget}. "
+        f"Output raw JSON only, nothing else."
     )
 
     client = get_bedrock_client()
@@ -67,7 +75,7 @@ def get_travel_recommendation(
             }
         ],
         "inferenceConfig": {
-            "maxTokens": 2048,
+            "maxTokens": 4096,
             "temperature": 0.7,
         },
     }
@@ -80,5 +88,13 @@ def get_travel_recommendation(
     )
 
     response_body = json.loads(response["body"].read())
+    result_text = response_body["output"]["message"]["content"][0]["text"]
 
-    return response_body["output"]["message"]["content"][0]["text"]
+    # SESSION 6 — HANDS-ON LAB: cleanup jaga-jaga kalau Bedrock tetap bungkus jawaban pakai code fence
+    result_text = result_text.strip()
+    if result_text.startswith("```"):
+        result_text = result_text.strip("`")
+        if result_text.lower().startswith("json"):
+            result_text = result_text[4:].strip()
+
+    return result_text
