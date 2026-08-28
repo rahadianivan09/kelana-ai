@@ -2,7 +2,7 @@
 // #HANDS-ON LAB — form input trip: destination, budget, days, travel_style
 // #HOMEWORK — Tailwind styling + responsive (stack vertical di mobile, grid 2 kolom di desktop)
 import { useState } from "react";
-import type { CreateTripPayload } from "@/lib/api";
+import type { CreateTripPayload } from "@/types/trip"; // <-- diganti dari "@/lib/api"
 
 interface TripFormProps {
   onSubmit: (payload: CreateTripPayload) => void;
@@ -11,7 +11,6 @@ interface TripFormProps {
 
 const TRAVEL_STYLES = ["Solo", "Couple", "Family", "Friends", "Business"];
 
-// #HOMEWORK — hilangkan tampilan spinner (panah atas-bawah) bawaan browser di input number
 const NUMBER_INPUT_CLASS =
   "rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
@@ -39,7 +38,6 @@ export default function TripForm({ onSubmit, disabled }: TripFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // #HOMEWORK — validasi: budget & days tidak boleh 0 atau negatif
     if (form.budget <= 0) {
       setFormError("Budget must be greater than 0.");
       return;
