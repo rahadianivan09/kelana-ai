@@ -19,5 +19,10 @@ Base = declarative_base()
 
 
 def init_db() -> None:
-    """Membuat semua tabel SQLAlchemy di database yang dikonfigurasi."""
+    """Membuat semua tabel SQLAlchemy + menjalankan migrasi ringan (Sesi 8)."""
     Base.metadata.create_all(bind=engine)
+
+    # HOMEWORK (Session 8) — jalankan migrasi auth: kolom user_id/updated_at + admin seed.
+    # Import lokal (di dalam fungsi) untuk menghindari circular import dengan migrations.py.
+    from migrations import run_migrations
+    run_migrations(engine)

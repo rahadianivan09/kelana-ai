@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware    
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
@@ -9,8 +9,12 @@ from services.trip_service import (
     get_recommended_transportation,
 )
 from services.bedrock_service import get_travel_recommendation
+from services import auth_service  # HANDS-ON LAB (Session 8) — register/login/JWT
 from models.trip import Trip
+from models.user import User  # HANDS-ON LAB (Session 8, Part 2) — wajib di-import
+                                # supaya Base.metadata.create_all() mengenal tabel `users`
 from database import SessionLocal, init_db
+from dependencies import get_current_user  # HANDS-ON LAB (Session 8, Part 5)
 
 app = FastAPI(title="KelanaAI")
 
@@ -37,9 +41,23 @@ class TripUpdateRequest(BaseModel):
     budget: float
 
 
+# HANDS-ON LAB (Session 8, Part 3) — request body Register
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+# HANDS-ON LAB (Session 8, Part 4) — request body Login
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 def trip_to_dict(trip: Trip) -> dict:
     return {
         "id": trip.id,
+        "user_id": trip.user_id,
         "destination": trip.destination,
         "days": trip.days,
         "budget": trip.budget,
@@ -48,6 +66,17 @@ def trip_to_dict(trip: Trip) -> dict:
         "travel_style": trip.travel_style,
         "ai_recommendation": trip.ai_recommendation,
         "created_at": trip.created_at,
+        "updated_at": trip.updated_at,
+    }
+
+
+def user_to_dict(user: User) -> dict:
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "created_at": user.created_at,
     }
 
 
@@ -61,8 +90,53 @@ def health():
     return {"status": "OK"}
 
 
+# ============================================================
+# HANDS-ON LAB (Session 8) — AUTH ENDPOINTS
+# ============================================================
+
+@app.post("/api/v1/auth/register")
+def register(request: RegisterRequest):
+    db = SessionLocal()
+    try:
+        user = auth_service.register(db, request.name, request.email, request.password)
+        return user_to_dict(user)
+    finally:
+        db.close()
+
+
+@app.post("/api/v1/auth/login")
+def login(request: LoginRequest):
+    db = SessionLocal()
+    try:
+        token = auth_service.login(db, request.email, request.password)
+        return {"access_token": token, "token_type": "Bearer"}
+    finally:
+        db.close()
+
+
+# CHALLENGE (Session 8) — Core Challenge: GET /api/v1/auth/me
+# Dipakai halaman /profile: nama, email, total trip. Identitas diambil dari JWT,
+# BUKAN dari user_id di URL (sesuai hint PDF slide 16).
+@app.get("/api/v1/auth/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        trip_count = db.query(Trip).filter(Trip.user_id == current_user.id).count()
+        data = user_to_dict(current_user)
+        data["total_trips"] = trip_count
+        return data
+    finally:
+        db.close()
+
+
+# ============================================================
+# TRIP ENDPOINTS — sekarang seluruhnya diproteksi JWT
+# ============================================================
+
+# HANDS-ON LAB (Session 8, Part 6) — ownership diambil dari token (Depends),
+# TIDAK PERNAH dari body request. Mencegah user membuat trip atas nama user lain.
 @app.post("/api/v1/trips")
-def create_trip(request: TripRequest):
+def create_trip(request: TripRequest, current_user: User = Depends(get_current_user)):
     daily_budget = calculate_daily_budget(request.budget, request.days)
     category = get_trip_category(request.budget)
     recommended_transport = get_recommended_transportation(category)
@@ -74,6 +148,7 @@ def create_trip(request: TripRequest):
         category=category,
         daily_budget=daily_budget,
         travel_style=request.travel_style,
+        user_id=current_user.id,  # <-- backend-set
     )
 
     db = SessionLocal()
@@ -87,16 +162,23 @@ def create_trip(request: TripRequest):
     return result
 
 
+# HOMEWORK (Session 8, #1) — View: only own trips.
+# role "admin" boleh melihat semua trip (dipakai untuk melihat data hasil migrasi);
+# role "user" hanya melihat trip miliknya sendiri.
 @app.get("/api/v1/trips")
-def list_trips():
+def list_trips(current_user: User = Depends(get_current_user)):
     db = SessionLocal()
-    trips = db.query(Trip).all()
+    query = db.query(Trip)
+    if current_user.role != "admin":
+        query = query.filter(Trip.user_id == current_user.id)
+    trips = query.all()
     db.close()
     return [trip_to_dict(t) for t in trips]
 
 
+# HOMEWORK (Session 8) — detail trip juga diproteksi ownership (403 kalau bukan pemilik)
 @app.get("/api/v1/trips/{trip_id}")
-def get_trip(trip_id: int):
+def get_trip(trip_id: int, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     trip = db.query(Trip).filter(Trip.id == trip_id).first()
     db.close()
@@ -104,17 +186,25 @@ def get_trip(trip_id: int):
     if trip is None:
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
 
+    if current_user.role != "admin" and trip.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not have access to this trip")
+
     return trip_to_dict(trip)
 
 
+# HOMEWORK (Session 8, #2) — Update: reject other users' trips -> 403
 @app.put("/api/v1/trips/{trip_id}")
-def update_trip(trip_id: int, request: TripUpdateRequest):
+def update_trip(trip_id: int, request: TripUpdateRequest, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     trip = db.query(Trip).filter(Trip.id == trip_id).first()
 
     if trip is None:
         db.close()
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+
+    if current_user.role != "admin" and trip.user_id != current_user.id:
+        db.close()
+        raise HTTPException(status_code=403, detail="You do not have permission to update this trip")
 
     new_daily_budget = calculate_daily_budget(request.budget, trip.days)
     new_category = get_trip_category(request.budget)
@@ -130,14 +220,19 @@ def update_trip(trip_id: int, request: TripUpdateRequest):
     return trip_to_dict(trip)
 
 
+# HOMEWORK (Session 8, #3) — Delete: reject other users' trips -> 403
 @app.delete("/api/v1/trips/{trip_id}")
-def delete_trip(trip_id: int):
+def delete_trip(trip_id: int, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     trip = db.query(Trip).filter(Trip.id == trip_id).first()
 
     if trip is None:
         db.close()
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+
+    if current_user.role != "admin" and trip.user_id != current_user.id:
+        db.close()
+        raise HTTPException(status_code=403, detail="You do not have permission to delete this trip")
 
     db.delete(trip)
     db.commit()
@@ -147,14 +242,20 @@ def delete_trip(trip_id: int):
 
 
 # Session 5 — HANDS-ON LAB: AI generation endpoint
+# UPDATE (Session 8) — ikut diproteksi ownership. Endpoint ini mengubah data trip
+# (ai_recommendation), jadi harus tunduk aturan yang sama dengan PUT/DELETE.
 @app.post("/api/v1/trips/{trip_id}/generate")
-def generate_trip_recommendation(trip_id: int):
+def generate_trip_recommendation(trip_id: int, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     trip = db.query(Trip).filter(Trip.id == trip_id).first()
 
     if trip is None:
         db.close()
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+
+    if current_user.role != "admin" and trip.user_id != current_user.id:
+        db.close()
+        raise HTTPException(status_code=403, detail="You do not have permission to modify this trip")
 
     recommendation = get_travel_recommendation(
         destination=trip.destination,

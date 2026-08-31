@@ -6,10 +6,11 @@ import HeroImage from "./components/HeroImage";
 import TripForm from "./components/TripForm";
 import Spinner from "./components/Spinner";
 import Footer from "./components/Footer";
+import RouteGuard from "./components/RouteGuard"; // HOMEWORK (Session 8, #5) — protect generate-trip page
 import { createTrip, generateRecommendation } from "@/services/tripService";
 import type { CreateTripPayload } from "@/types/trip";
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,20 +35,24 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-50">
       <HeroImage destination={destination} />
-
       <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8 sm:py-10">
         <TripForm onSubmit={handleSubmit} disabled={loading} />
-
         {loading && <Spinner />}
-
         {error && !loading && (
           <div className="rounded-xl bg-teal-600 py-6 text-center text-white">
             <p className="font-semibold">{error}</p>
           </div>
         )}
       </div>
-
       <Footer />
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <RouteGuard>
+      <HomeContent />
+    </RouteGuard>
   );
 }
