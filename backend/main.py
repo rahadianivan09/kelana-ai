@@ -9,6 +9,7 @@ from services.trip_service import (
     get_recommended_transportation,
 )
 from services.bedrock_service import get_travel_recommendation
+from services.kb_service import ask_knowledge_base, ask_base_model  # HANDS-ON LAB (Session 9) — RAG
 from services import auth_service  # HANDS-ON LAB (Session 8) — register/login/JWT
 from models.trip import Trip
 from models.user import User  # HANDS-ON LAB (Session 8, Part 2) — wajib di-import
@@ -47,12 +48,18 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
 
-
 # HANDS-ON LAB (Session 8, Part 4) — request body Login
 class LoginRequest(BaseModel):
     email: str
     password: str
 
+# HANDS-ON LAB (Session 9) — request body untuk /api/v1/assistant
+class AssistantRequest(BaseModel):
+    question: str
+
+# ⬇️ TAMBAH INI
+class CompareRequest(BaseModel):
+    question: str
 
 def trip_to_dict(trip: Trip) -> dict:
     return {
@@ -275,6 +282,28 @@ def generate_trip_recommendation(trip_id: int, current_user: User = Depends(get_
         "recommendation": trip.ai_recommendation,
     }
 
+
+# HANDS-ON LAB (Session 9) — RAG ASSISTANT ENDPOINT
+@app.post("/api/v1/assistant")
+def ask_assistant(request: AssistantRequest, current_user: User = Depends(get_current_user)):
+    result = ask_knowledge_base(request.question)
+    return {
+        "question": request.question,
+        "answer": result["answer"],
+        "sources": result["sources"],
+    }
+
+# ⬇ENDPOINT BARU DITAMBAH DI SINI
+@app.post("/api/v1/assistant/compare")
+def compare_assistant(request: CompareRequest, current_user: User = Depends(get_current_user)):
+    rag_result = ask_knowledge_base(request.question)
+    base_answer = ask_base_model(request.question)
+    return {
+        "question": request.question,
+        "base_model_answer": base_answer,
+        "rag_answer": rag_result["answer"],
+        "rag_sources": rag_result["sources"],
+    }
 
 @app.get("/api/v1/recommendations")
 def get_recommendations():

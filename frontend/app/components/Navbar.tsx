@@ -19,6 +19,9 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-5 text-sm font-medium text-slate-600">
+          <Link href="/assistant" className="hover:text-blue-700 transition-colors">
+            Ask AI
+          </Link>
           <Link href="/" className="hover:text-blue-700 transition-colors">
             Home
           </Link>
