@@ -22,6 +22,10 @@ export default function Navbar() {
           <Link href="/assistant" className="hover:text-blue-700 transition-colors">
             Ask AI
           </Link>
+          {/* HANDS-ON LAB (Session 10) — entry point ke fitur Conversation Memory */}
+          <Link href="/chat" className="hover:text-blue-700 transition-colors">
+            Chat
+          </Link>
           <Link href="/" className="hover:text-blue-700 transition-colors">
             Home
           </Link>

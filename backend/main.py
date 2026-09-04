@@ -11,6 +11,9 @@ from services.trip_service import (
 from services.bedrock_service import get_travel_recommendation
 from services.kb_service import ask_knowledge_base, ask_base_model  # HANDS-ON LAB (Session 9) — RAG
 from services import auth_service  # HANDS-ON LAB (Session 8) — register/login/JWT
+from services.chat_service import generate_chat_response  # HANDS-ON LAB (Session 10) — Conversation Memory
+from models.conversation import Conversation  # HANDS-ON LAB (Session 10, Part 2) — wajib di-import
+from models.message import Message              # supaya Base.metadata.create_all() mengenal tabel ini
 from models.trip import Trip
 from models.user import User  # HANDS-ON LAB (Session 8, Part 2) — wajib di-import
                                 # supaya Base.metadata.create_all() mengenal tabel `users`
@@ -61,6 +64,20 @@ class AssistantRequest(BaseModel):
 class CompareRequest(BaseModel):
     question: str
 
+# HANDS-ON LAB (Session 10, Part 3) — request body: buat conversation baru
+class ConversationCreateRequest(BaseModel):
+    title: Optional[str] = None  # kosong -> default "New Conversation" (lihat model)
+
+
+# BONUS (Session 10) — request body: rename conversation
+class ConversationRenameRequest(BaseModel):
+    title: str
+
+
+# HANDS-ON LAB (Session 10, Part 4) — request body: kirim pesan baru
+class MessageCreateRequest(BaseModel):
+    content: str
+
 def trip_to_dict(trip: Trip) -> dict:
     return {
         "id": trip.id,
@@ -86,6 +103,24 @@ def user_to_dict(user: User) -> dict:
         "created_at": user.created_at,
     }
 
+# HANDS-ON LAB (Session 10, Part 2-3) — helper dict, pola sama seperti trip_to_dict
+def conversation_to_dict(conversation: Conversation) -> dict:
+    return {
+        "id": conversation.id,
+        "user_id": conversation.user_id,
+        "title": conversation.title,
+        "created_at": conversation.created_at,
+    }
+
+
+def message_to_dict(message: Message) -> dict:
+    return {
+        "id": message.id,
+        "conversation_id": message.conversation_id,
+        "role": message.role,
+        "content": message.content,
+        "created_at": message.created_at,
+    }
 
 @app.get("/")
 def home():
@@ -304,6 +339,166 @@ def compare_assistant(request: CompareRequest, current_user: User = Depends(get_
         "rag_answer": rag_result["answer"],
         "rag_sources": rag_result["sources"],
     }
+
+
+# HANDS-ON LAB (Session 10) — CONVERSATION MEMORY ENDPOINTS
+# Seluruh endpoint di bawah ini diproteksi JWT + ownership, konsisten dengan
+# pola Trip (Session 8): 403 kalau bukan pemilik, admin bisa lihat/ubah semua.
+
+# HANDS-ON LAB (Session 10, Part 3) — buat conversation baru.
+# Ownership diambil dari token (Depends), TIDAK PERNAH dari body request --
+# pola sama persis dengan create_trip (Session 8, Part 6).
+@app.post("/api/v1/conversations")
+def create_conversation(request: ConversationCreateRequest, current_user: User = Depends(get_current_user)):
+    conversation = Conversation(
+        user_id=current_user.id,
+        title=request.title or "New Conversation",
+    )
+
+    db = SessionLocal()
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    db.close()
+
+    return conversation_to_dict(conversation)
+
+
+# HANDS-ON LAB (Session 10, Part 3) + CORE CHALLENGE — list conversation untuk sidebar.
+# role "admin" boleh melihat semua conversation, role "user" hanya miliknya sendiri
+# (pola sama dengan list_trips, Session 8 Homework #1).
+@app.get("/api/v1/conversations")
+def list_conversations(current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    query = db.query(Conversation)
+    if current_user.role != "admin":
+        query = query.filter(Conversation.user_id == current_user.id)
+    conversations = query.order_by(Conversation.created_at.desc()).all()
+    db.close()
+    return [conversation_to_dict(c) for c in conversations]
+
+
+# CORE CHALLENGE (Session 10) — dipanggil saat user klik salah satu conversation
+# di sidebar: mengembalikan title + seluruh messages sekaligus dalam 1 request,
+# supaya frontend tidak perlu 2 kali fetch untuk "load history" (PDF Part 7).
+@app.get("/api/v1/conversations/{conversation_id}")
+def get_conversation(conversation_id: int, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+
+    if conversation is None:
+        db.close()
+        raise HTTPException(status_code=404, detail=f"Conversation with id {conversation_id} not found")
+
+    if current_user.role != "admin" and conversation.user_id != current_user.id:
+        db.close()
+        raise HTTPException(status_code=403, detail="You do not have access to this conversation")
+
+    messages = (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
+    db.close()
+
+    result = conversation_to_dict(conversation)
+    result["messages"] = [message_to_dict(m) for m in messages]
+    return result
+
+
+# BONUS (Session 10) — Rename Conversations: PATCH /api/v1/conversations/{id}
+# (endpoint & method sesuai hint UI di PDF slide Bonus)
+@app.patch("/api/v1/conversations/{conversation_id}")
+def rename_conversation(
+    conversation_id: int,
+    request: ConversationRenameRequest,
+    current_user: User = Depends(get_current_user),
+):
+    db = SessionLocal()
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+
+    if conversation is None:
+        db.close()
+        raise HTTPException(status_code=404, detail=f"Conversation with id {conversation_id} not found")
+
+    if current_user.role != "admin" and conversation.user_id != current_user.id:
+        db.close()
+        raise HTTPException(status_code=403, detail="You do not have permission to rename this conversation")
+
+    conversation.title = request.title
+    db.commit()
+    db.refresh(conversation)
+    db.close()
+
+    return conversation_to_dict(conversation)
+
+
+# HANDS-ON LAB (Session 10, Part 4) — SEND MESSAGE API: jantung sesi ini.
+# 7 langkah sesuai PDF Part 4: receive user message -> save message ->
+# load previous messages -> build prompt -> Amazon Bedrock -> save AI response
+# -> return response. Endpoint yang sama dipakai baik untuk memulai percakapan
+# BARU maupun MELANJUTKAN percakapan lama (PDF Part 7) -- yang beda cuma
+# conversation_id di URL.
+@app.post("/api/v1/conversations/{conversation_id}/messages")
+def send_message(
+    conversation_id: int,
+    request: MessageCreateRequest,
+    current_user: User = Depends(get_current_user),
+):
+    db = SessionLocal()
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+
+    if conversation is None:
+        db.close()
+        raise HTTPException(status_code=404, detail=f"Conversation with id {conversation_id} not found")
+
+    if current_user.role != "admin" and conversation.user_id != current_user.id:
+        db.close()
+        raise HTTPException(status_code=403, detail="You do not have permission to post in this conversation")
+
+    # 1-2. Receive + Save Message (role="user")
+    user_message = Message(conversation_id=conversation_id, role="user", content=request.content)
+    db.add(user_message)
+    db.commit()
+    db.refresh(user_message)
+
+    # 3. Load Previous Messages — REKONSTRUKSI seluruh riwayat (termasuk pesan
+    # yang baru saja disimpan di atas), diurutkan created_at (PDF Part 2 & 7).
+    history = (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
+
+    # 4-5. Build Prompt + Amazon Bedrock (lihat services/chat_service.py)
+    try:
+        answer = generate_chat_response(history)
+    except Exception as e:
+        db.close()
+        raise HTTPException(status_code=502, detail=f"Failed to get response from Bedrock: {e}")
+
+    # 6. Save AI Response (role="assistant")
+    ai_message = Message(conversation_id=conversation_id, role="assistant", content=answer)
+    db.add(ai_message)
+    db.commit()
+    db.refresh(ai_message)
+
+    user_message_dict = message_to_dict(user_message)
+    ai_message_dict = message_to_dict(ai_message)
+    db.close()
+
+    # 7. Return Response — user_message + ai_message sekaligus, supaya frontend
+    # bisa langsung append 2 message bubble tanpa fetch ulang (mendukung
+    # Homework: auto-scroll & typing-indicator lebih presisi tahu kapan
+    # jawaban AI benar-benar datang).
+    return {
+        "conversation_id": conversation_id,
+        "user_message": message_to_dict(user_message),
+        "ai_message": message_to_dict(ai_message),
+    }
+
 
 @app.get("/api/v1/recommendations")
 def get_recommendations():
