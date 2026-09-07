@@ -1,3 +1,10 @@
+// BUGFIX (Session 11) — `JSX.Element` dipakai sebagai global namespace, tapi
+// tipe global JSX itu tidak selalu ter-inject otomatis (tergantung versi
+// React/Next types), jadi `tsc --noEmit` gagal dengan "Cannot find namespace
+// 'JSX'". Next.js production build (`next build`) menjalankan type-check ini
+// dan akan GAGAL DEPLOY kalau tidak diperbaiki. Fix: import type JSX eksplisit.
+import type { JSX } from "react";
+
 // #HOMEWORK (Session 7) — Destination Icon/Flag per destinasi
 //
 // Kenapa SVG, bukan emoji (🇯🇵 🇸🇬 🇲🇾)?
