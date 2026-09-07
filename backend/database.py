@@ -9,7 +9,13 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # engine = connection pool ke PostgreSQL
-engine = create_engine(DATABASE_URL)
+# pool_pre_ping: test koneksi sebelum dipakai, auto-reconnect kalau koneksi lama sudah mati
+# pool_recycle: paksa recycle koneksi sebelum kena idle timeout dari server (Neon/serverless Postgres)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=300,
+)
 
 # SessionLocal = factory untuk bikin session per request
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
