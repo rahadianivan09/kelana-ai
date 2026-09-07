@@ -14,7 +14,7 @@ export type AskResponse = {
 };
 
 export async function askAssistant(question: string): Promise<AskResponse> {
-  const res = await fetch(`${API_URL}/assistant`, {
+  const res = await fetch(`${API_URL}/api/v1/assistant`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ question }),
