@@ -22,5 +22,8 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* BEAUTIFICATION (Session 11) — sebelumnya body dipaksa pakai Arial,
+     padahal Geist sudah di-load di layout.tsx (variable --font-geist-sans)
+     dan tidak pernah kepakai. Sekarang benar-benar pakai Geist. */
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }

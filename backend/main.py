@@ -1,6 +1,9 @@
+import os
+
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy import text
 from typing import Optional
 
 from services.trip_service import (
@@ -22,10 +25,25 @@ from dependencies import get_current_user  # HANDS-ON LAB (Session 8, Part 5)
 
 app = FastAPI(title="KelanaAI")
 
-# SESSION 6 — HANDS-ON LAB: izinkan Next.js (localhost:3000) manggil API ini
+# SESSION 6 — HANDS-ON LAB: izinkan Next.js manggil API ini.
+# SESSION 11 — PRODUCTION FIX: origin production dibaca dari env var FRONTEND_URL
+# (di-set di FastApiCloud dashboard ke URL Vercel, contoh: https://kelana-ai.vercel.app),
+# supaya tidak perlu hardcode & tidak perlu redeploy kode tiap ganti domain frontend.
+# Dev localhost tetap di-allow terus supaya `next dev` lokal tidak pernah putus.
+DEV_ORIGINS = ["http://localhost:3000", "http://localhost:3001"]
+
+_frontend_url_env = os.getenv("FRONTEND_URL", "")
+PROD_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in _frontend_url_env.split(",")
+    if origin.strip()
+]
+
+allowed_origins = DEV_ORIGINS + PROD_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -127,9 +145,24 @@ def home():
     return {"message": "Welcome to KelanaAI"}
 
 
+# SESSION 11 — PRODUCTION FIX: /health sebelumnya cuma return {"status": "OK"}
+# tanpa cek apapun, jadi tetap hijau walaupun Neon down/misconfigured.
+# Sekarang beneran nge-ping DB lewat SELECT 1 supaya health check berarti.
 @app.get("/health")
 def health():
-    return {"status": "OK"}
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "error", "database": "unreachable", "error": str(e)},
+        )
+    finally:
+        db.close()
+
+    return {"status": "OK", "database": db_status}
 
 
 # ============================================================

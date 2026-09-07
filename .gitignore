@@ -6,6 +6,7 @@ backend/.env
 # Frontend (Next.js)
 frontend/node_modules/
 frontend/.next/
+frontend/.env
 frontend/.env*.local
 frontend/out/
 frontend/next-env.d.ts

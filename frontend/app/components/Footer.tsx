@@ -6,6 +6,7 @@ export default function Footer() {
         <p>© {new Date().getFullYear()} KelanaAI. All rights reserved.</p>
         <div className="flex gap-4">
           <a href="https://github.com/rahadianivan09/kelana-ai" className="hover:text-blue-800">GitHub</a>
+          <a href="/about" className="hover:text-blue-800">About</a>
           <a href="/" className="hover:text-blue-800">Home</a>
         </div>
       </div>

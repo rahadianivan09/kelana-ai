@@ -32,6 +32,10 @@ export default function Navbar() {
           <Link href="/trips" className="hover:text-blue-700 transition-colors">
             My Trips
           </Link>
+          {/* HOMEWORK (Session 11, #4) — link ke About page */}
+          <Link href="/about" className="hidden sm:inline hover:text-blue-700 transition-colors">
+            About
+          </Link>
 
           {!loading && user && (
             <>
