@@ -19,7 +19,7 @@ export function clearToken() {
 
 // HOMEWORK (Session 8, #4) — Register
 export async function register(payload: RegisterPayload): Promise<User> {
-  const res = await fetch(`${API_URL}/auth/register`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -33,7 +33,7 @@ export async function register(payload: RegisterPayload): Promise<User> {
 
 // HOMEWORK (Session 8, #4) — Login -> simpan token
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
-  const res = await fetch(`${API_URL}/auth/login`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -55,7 +55,7 @@ export function logout() {
 // CHALLENGE (Session 8) — profile: nama, email, total trip
 export async function getMe(): Promise<AuthUser> {
   const token = getToken();
-  const res = await fetch(`${API_URL}/auth/me`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/me`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error("Failed to fetch profile");

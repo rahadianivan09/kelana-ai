@@ -10,19 +10,19 @@ function authHeaders(): HeadersInit {
 }
 
 export async function getTrips(): Promise<Trip[]> {
-  const res = await fetch(`${API_URL}/trips`, { cache: "no-store", headers: authHeaders() });
+  const res = await fetch(`${API_URL}/api/v1/trips`, { cache: "no-store", headers: authHeaders() });
   if (!res.ok) throw new Error("Failed to fetch trips");
   return res.json();
 }
 
 export async function getTrip(id: number): Promise<Trip> {
-  const res = await fetch(`${API_URL}/trips/${id}`, { cache: "no-store", headers: authHeaders() });
+  const res = await fetch(`${API_URL}/api/v1/trips/${id}`, { cache: "no-store", headers: authHeaders() });
   if (!res.ok) throw new Error("Failed to fetch trip");
   return res.json();
 }
 
 export async function createTrip(payload: CreateTripPayload): Promise<Trip> {
-  const res = await fetch(`${API_URL}/trips`, {
+  const res = await fetch(`${API_URL}/api/v1/trips`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(payload),
@@ -32,7 +32,7 @@ export async function createTrip(payload: CreateTripPayload): Promise<Trip> {
 }
 
 export async function generateRecommendation(tripId: number) {
-  const res = await fetch(`${API_URL}/trips/${tripId}/generate`, {
+  const res = await fetch(`${API_URL}/api/v1/trips/${tripId}/generate`, {
     method: "POST",
     headers: authHeaders(),
   });
