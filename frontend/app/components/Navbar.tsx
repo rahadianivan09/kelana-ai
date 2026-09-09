@@ -22,15 +22,15 @@ export default function Navbar() {
 
         {/* Desktop nav — TIDAK DIUBAH, tetap sama persis seperti sebelumnya, hanya disembunyikan di layar kecil */}
         <div className="hidden md:flex items-center gap-5 text-sm font-medium text-slate-600">
+          <Link href="/" className="hover:text-blue-700 transition-colors">
+            Home
+          </Link>
           <Link href="/assistant" className="hover:text-blue-700 transition-colors">
             Ask AI
           </Link>
           {/* HANDS-ON LAB (Session 10) — entry point ke fitur Conversation Memory */}
           <Link href="/chat" className="hover:text-blue-700 transition-colors">
             Chat
-          </Link>
-          <Link href="/" className="hover:text-blue-700 transition-colors">
-            Home
           </Link>
           <Link href="/trips" className="hover:text-blue-700 transition-colors">
             My Trips
@@ -94,14 +94,14 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3">
           <div className="flex flex-col gap-3 text-sm font-medium text-slate-600">
+            <Link href="/" className="hover:text-blue-700 transition-colors" onClick={() => setMobileOpen(false)}>
+              Home
+            </Link>
             <Link href="/assistant" className="hover:text-blue-700 transition-colors" onClick={() => setMobileOpen(false)}>
               Ask AI
             </Link>
             <Link href="/chat" className="hover:text-blue-700 transition-colors" onClick={() => setMobileOpen(false)}>
               Chat
-            </Link>
-            <Link href="/" className="hover:text-blue-700 transition-colors" onClick={() => setMobileOpen(false)}>
-              Home
             </Link>
             <Link href="/trips" className="hover:text-blue-700 transition-colors" onClick={() => setMobileOpen(false)}>
               My Trips

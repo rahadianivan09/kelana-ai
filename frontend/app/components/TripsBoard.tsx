@@ -46,7 +46,7 @@ export default function TripsBoard({ trips }: { trips: Trip[] }) {
       <div className="border-2 border-dashed rounded-xl p-12 text-center text-gray-500">
         <p className="text-lg font-medium mb-2">No trips found.</p>
         <p className="mb-4">Create your first itinerary.</p>
-        <a href="/" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg">
+        <a href="/trips/new" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg">
           Generate a Trip →
         </a>
       </div>

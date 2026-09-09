@@ -19,8 +19,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login({ email, password });
-      // HANDS-ON LAB (Session 8, Part 7) — Login -> Token -> redirect ke /trips
-      router.push("/trips");
+      // HANDS-ON LAB (Session 8, Part 7) — Login -> Token -> langsung arahkan
+      // ke halaman create trip, bukan ke list yang mungkin masih kosong
+      router.push("/trips/new");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to login");
     } finally {

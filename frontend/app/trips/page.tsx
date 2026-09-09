@@ -4,6 +4,7 @@
 // dari browser/client, TIDAK bisa dari Server Component (fetch server-side lama).
 // Filtering "hanya trip milik user login" sudah ditangani backend (GET /trips).
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { getTrips } from "@/services/tripService";
 import TripsBoard from "@/app/components/TripsBoard";
 import RouteGuard from "@/app/components/RouteGuard";
@@ -45,7 +46,15 @@ export default function TripsPage() {
   return (
     <RouteGuard>
       <main className="max-w-5xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold mb-1">Trip History</h1>
+        <div className="mb-1 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Trip History</h1>
+          <Link
+            href="/trips/new"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            + New Trip
+          </Link>
+        </div>
         <TripsContent />
       </main>
     </RouteGuard>

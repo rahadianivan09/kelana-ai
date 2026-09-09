@@ -25,6 +25,9 @@ function ChatContent() {
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // UI POLISH (mobile) — sidebar percakapan jadi drawer di layar kecil,
+  // tetap selalu tampil di layar medium ke atas (lihat ConversationSidebar).
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // HANDS-ON LAB (Session 10, Part 3) — load sidebar saat halaman dibuka
   useEffect(() => {
@@ -43,6 +46,7 @@ function ChatContent() {
       setActiveId(data.id);
       setActiveTitle(data.title);
       setMessages(data.messages);
+      setSidebarOpen(false); // di mobile, tutup drawer setelah pilih conversation
     } catch {
       setError("Unable to load this conversation.");
     }
@@ -58,6 +62,7 @@ function ChatContent() {
       setActiveId(conversation.id);
       setActiveTitle(conversation.title);
       setMessages([]);
+      setSidebarOpen(false); // di mobile, tutup drawer setelah bikin conversation baru
     } catch {
       setError("Unable to start a new conversation.");
     } finally {
@@ -88,9 +93,9 @@ function ChatContent() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-57px)] bg-white">
+    <div className="flex h-[calc(100vh-57px)] bg-white relative overflow-hidden">
       {loadingList ? (
-        <div className="w-64 shrink-0 border-r border-slate-200 p-4 bg-white">
+        <div className="w-64 shrink-0 border-r border-slate-200 p-4 bg-white hidden md:block">
           <div className="h-9 rounded-lg bg-gray-100 animate-pulse mb-3" />
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-8 rounded-lg bg-gray-100 animate-pulse mb-2" />
@@ -104,6 +109,8 @@ function ChatContent() {
           onCreateNew={handleCreateNew}
           onRenamed={handleRenamed}
           creating={creating}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
       )}
 
@@ -115,6 +122,7 @@ function ChatContent() {
           onSend={handleSend}
           sending={sending}
           disabled={activeId === null}
+          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         />
       </div>
     </div>
